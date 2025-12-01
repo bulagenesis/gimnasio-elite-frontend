@@ -1,0 +1,103 @@
+/* payments.css - estilo módulo Pagos (azul + negro, moderno) */
+
+/* Modal */
+.custom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.custom-modal {
+  width: 900px;
+  max-width: 96%;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+  overflow: hidden;
+  animation: modalEnter 180ms ease;
+}
+
+@keyframes modalEnter {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.custom-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #0d6efd;
+  color: white;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.custom-modal-body {
+  padding: 18px;
+  background: #fff;
+}
+
+.custom-modal-footer {
+  padding: 12px 18px;
+  background: #f6f8fa;
+  border-top: 1px solid #eaeef6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Cards y tablas */
+.modern-card {
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.06);
+}
+
+.modern-table thead {
+  background: #f3f5f9;
+}
+
+.modern-table tbody tr:hover {
+  background: #fbfcff;
+}
+
+/* pequeñas cajas de estadística */
+.stat-box {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(2,6,23,0.04);
+}
+
+/* info card */
+.info-card {
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #eef2ff;
+}
+
+/* clients selected box */
+.clients-selected {
+  background: #fff;
+}
+
+/* badges personalizados */
+.badge {
+  font-weight: 600;
+}
+
+/* responsive */
+@media (max-width: 768px) {
+  .custom-modal { width: 96%; padding: 0; }
+  .custom-modal-body { padding: 12px; }
+}

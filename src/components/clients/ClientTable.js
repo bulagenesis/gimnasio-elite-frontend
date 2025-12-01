@@ -1,23 +1,23 @@
-// src/components/clients/ClientTable.js
-import React from 'react';
+// src/components/clients/ClientTable.jsx
+import React from "react";
 
-const ClientTable = ({ clientes, onUpdate, onEdit, onDelete }) => {
+const ClientTable = ({ clientes, onEdit, onDelete }) => {
   const handleDelete = async (id, nombre) => {
-    if (window.confirm(`¿Estás seguro de que quieres eliminar al cliente ${nombre}?`)) {
+    if (window.confirm(`¿Seguro que deseas eliminar a ${nombre}?`)) {
       try {
         await onDelete(id);
-        alert('Cliente eliminado exitosamente');
+        alert("Cliente eliminado correctamente");
       } catch (error) {
-        alert('Error al eliminar cliente');
+        alert("Error al eliminar cliente");
       }
     }
   };
 
   return (
-    <div className="card">
+    <div className="card modern-card">
       <div className="card-body">
         <div className="table-responsive">
-          <table className="table table-striped">
+          <table className="table modern-table align-middle">
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -25,35 +25,48 @@ const ClientTable = ({ clientes, onUpdate, onEdit, onDelete }) => {
                 <th>Cédula</th>
                 <th>Teléfono</th>
                 <th>Email</th>
-                <th>Fecha Registro</th>
-                <th>Acciones</th>
+                <th>Registro</th>
+                <th className="text-center">Acciones</th>
               </tr>
             </thead>
+
             <tbody>
-              {clientes.map(cliente => (
-                <tr key={cliente.id}>
-                  <td>{cliente.nombre}</td>
-                  <td>{cliente.apellido}</td>
-                  <td>{cliente.cedula}</td>
-                  <td>{cliente.telefono}</td>
-                  <td>{cliente.email}</td>
-                  <td>{cliente.fecha_registro}</td>
-                  <td>
-                    <button 
-                      className="btn btn-sm btn-outline-primary me-1"
-                      onClick={() => onEdit(cliente)}
-                    >
-                      Editar
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleDelete(cliente.id, `${cliente.nombre} ${cliente.apellido}`)}
-                    >
-                      Eliminar
-                    </button>
+              {clientes.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-3 text-muted">
+                    No hay clientes registrados
                   </td>
                 </tr>
-              ))}
+              ) : (
+                clientes.map((cliente) => (
+                  <tr key={cliente.id}>
+                    <td>{cliente.nombre}</td>
+                    <td>{cliente.apellido}</td>
+                    <td>{cliente.cedula}</td>
+                    <td>{cliente.telefono}</td>
+                    <td>{cliente.email}</td>
+                    <td>{cliente.fecha_registro}</td>
+
+                    <td className="text-center">
+                      <button
+                        className="btn btn-sm btn-outline-primary me-2"
+                        onClick={() => onEdit(cliente)}
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() =>
+                          handleDelete(cliente.id, `${cliente.nombre} ${cliente.apellido}`)
+                        }
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

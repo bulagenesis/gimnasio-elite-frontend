@@ -1,23 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import React, { useState, useEffect } from "react";
+import api from "../services/api";
 
-const RevenueReport = () => {
+const Dashboard = () => {
   const [reporteMensual, setReporteMensual] = useState({
     ingresosMembresias: 0,
     ingresosProductos: 0,
     totalIngresos: 0,
-    gastos: 0,
-    gananciaNeta: 0,
-    crecimiento: 0
   });
 
   const [productosMasVendidos, setProductosMasVendidos] = useState([]);
+  const [ventasRecientes, setVentasRecientes] = useState([]);
+  const [pagosRecientes, setPagosRecientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalClientes: 0,
     membresiasActivas: 0,
     totalVentas: 0,
-    ingresosTotales: 0
+    ingresosTotales: 0,
   });
 
   useEffect(() => {
@@ -27,252 +26,330 @@ const RevenueReport = () => {
   const cargarDatosDashboard = async () => {
     try {
       setLoading(true);
-      
-      // Cargar todos los datos reales del backend
-      const [clientesData, membresiasData, pagosData, productosData] = await Promise.all([
-        api.getClientes(),
-        api.getMembresias?.(),
-        api.getPagos?.(),
-        api.getProductos?.()
+
+      // Cargar datos principales
+      const [clientesData, pagosData, productosData, ventasData] = await Promise.all([
+        api.getClientes().catch(() => []),
+        api.getPagos().catch(() => []),
+        api.getProductos().catch(() => []),
+        api.getVentas().catch(() => []), // Si falla, usa array vacío
       ]);
 
-      // Calcular estadísticas reales
+      // Procesar datos REALES
       const totalClientes = clientesData.length;
-      const membresiasActivas = membresiasData?.filter(m => m.estado === 'activa').length || 0;
+      const membresiasActivas = calcularMembresiasActivas(pagosData);
       
-      // Calcular ingresos de pagos
-      const ingresosMembresias = pagosData?.reduce((total, pago) => total + (pago.monto || 0), 0) || 0;
+      const ingresosMembresias = pagosData.reduce((total, pago) => 
+        total + (Number(pago.valor) || 0), 0
+      );
       
-      // Calcular ventas de productos (ajusta según tu modelo)
-      const ingresosProductos = productosData?.reduce((total, producto) => 
-        total + ((producto.precio || 0) * (producto.vendidos || 0)), 0) || 0;
+      const ingresosProductos = ventasData.reduce((total, venta) => 
+        total + (Number(venta.total) || 0), 0
+      );
 
       const totalIngresos = ingresosMembresias + ingresosProductos;
-      const gastos = totalIngresos * 0.3; // Estimado 30% de gastos
-      const gananciaNeta = totalIngresos - gastos;
 
-      // Productos más vendidos (ajusta según tu modelo de productos)
-      const productosPopulares = productosData?.map(producto => ({
-        nombre: producto.nombre || 'Producto',
-        vendidos: producto.vendidos || 0,
-        ingresos: (producto.precio || 0) * (producto.vendidos || 0)
-      })).sort((a, b) => b.vendidos - a.vendidos).slice(0, 5) || [];
+      // Productos más vendidos (solo si hay ventas)
+      const productosMasVendidosArray = ventasData.length > 0 
+        ? calcularProductosMasVendidos(ventasData, productosData)
+        : [];
 
-      // Crecimiento (comparar con mes anterior - datos de ejemplo)
-      const crecimiento = totalClientes > 0 ? Math.min((totalClientes / 10) * 100, 50) : 0;
+      // Ordenar datos recientes
+      const ventasRecientesArray = [...ventasData]
+        .sort((a, b) => new Date(b.fecha_venta) - new Date(a.fecha_venta))
+        .slice(0, 5);
 
+      const pagosRecientesArray = [...pagosData]
+        .sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago))
+        .slice(0, 5);
+
+      // Actualizar estados
       setStats({
         totalClientes,
         membresiasActivas,
-        totalVentas: productosPopulares.reduce((total, p) => total + p.vendidos, 0),
-        ingresosTotales: totalIngresos
+        totalVentas: ventasData.length,
+        ingresosTotales: totalIngresos,
       });
 
       setReporteMensual({
         ingresosMembresias,
         ingresosProductos,
         totalIngresos,
-        gastos,
-        gananciaNeta,
-        crecimiento
       });
 
-      setProductosMasVendidos(productosPopulares);
+      setProductosMasVendidos(productosMasVendidosArray);
+      setVentasRecientes(ventasRecientesArray);
+      setPagosRecientes(pagosRecientesArray);
 
     } catch (error) {
-      console.error('Error cargando datos del dashboard:', error);
-      // Si algún endpoint falla, usar datos basados en clientes
-      usarDatosBasicos();
+      console.error("Error cargando dashboard:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const usarDatosBasicos = async () => {
-    try {
-      const clientesData = await api.getClientes();
-      const totalClientes = clientesData.length;
-      
-      // Datos estimados basados en número de clientes
-      const ingresosBase = totalClientes * 150000;
-      
-      setStats({
-        totalClientes,
-        membresiasActivas: Math.floor(totalClientes * 0.8),
-        totalVentas: totalClientes * 2,
-        ingresosTotales: ingresosBase
-      });
-
-      setReporteMensual({
-        ingresosMembresias: ingresosBase * 0.7,
-        ingresosProductos: ingresosBase * 0.3,
-        totalIngresos: ingresosBase,
-        gastos: ingresosBase * 0.4,
-        gananciaNeta: ingresosBase * 0.6,
-        crecimiento: totalClientes > 0 ? 12.5 : 0
-      });
-
-      setProductosMasVendidos([
-        { nombre: 'Proteína Whey', vendidos: totalClientes * 2, ingresos: 540000 },
-        { nombre: 'Creatina', vendidos: totalClientes, ingresos: 256000 },
-        { nombre: 'Bebida Hidratante', vendidos: Math.floor(totalClientes * 0.8), ingresos: 14000 },
-      ]);
-
-    } catch (error) {
-      console.error('Error cargando datos básicos:', error);
-    }
+  const calcularMembresiasActivas = (pagos) => {
+    if (!pagos.length) return 0;
+    
+    const treintaDiasAtras = new Date();
+    treintaDiasAtras.setDate(treintaDiasAtras.getDate() - 30);
+    
+    const pagosRecientes = pagos.filter(pago => {
+      const fechaPago = new Date(pago.fecha_pago);
+      return fechaPago >= treintaDiasAtras;
+    });
+    
+    const clientesActivos = new Set(pagosRecientes.map(pago => pago.cliente_id));
+    return clientesActivos.size;
   };
 
-  const formatearMoneda = (monto) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(monto);
+  const calcularProductosMasVendidos = (ventas, productos) => {
+    if (!ventas.length) return [];
+
+    const resumen = {};
+
+    ventas.forEach((venta) => {
+      venta.productos?.forEach((productoVenta) => {
+        const id = productoVenta.producto_id;
+        
+        if (!resumen[id]) {
+          const infoProducto = productos.find(prod => prod.id === id);
+          resumen[id] = {
+            nombre: infoProducto?.nombre || "Producto",
+            vendidos: 0,
+            ingresos: 0,
+          };
+        }
+
+        resumen[id].vendidos += productoVenta.cantidad;
+        resumen[id].ingresos += productoVenta.subtotal;
+      });
+    });
+
+    return Object.values(resumen)
+      .sort((a, b) => b.ingresos - a.ingresos)
+      .slice(0, 5);
   };
 
-  if (loading) {
-    return (
-      <div className="card gym-card">
-        <div className="card-body text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Cargando...</span>
-          </div>
-          <p className="mt-3 text-muted">Cargando datos del dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const fMoneda = (num) =>
+    new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+    }).format(num || 0);
+
+  const fFecha = (f) => {
+    if (!f) return "N/A";
+    return new Date(f).toLocaleDateString("es-CO");
+  };
+
+  const fFechaHora = (f) => {
+    if (!f) return "N/A";
+    return new Date(f).toLocaleString("es-CO");
+  };
 
   return (
-    <div className="card gym-card">
-      <div className="card-header bg-white">
-        <h5 className="card-title mb-0">📈 Dashboard en Tiempo Real</h5>
-        <small className="text-muted">Datos actualizados del sistema</small>
+    <div className="container-fluid p-4">
+      <div className="mb-4">
+        <h2 className="text-dark mb-0">Dashboard General</h2>
+        <small className="text-muted">Resumen financiero del gimnasio</small>
       </div>
-      <div className="card-body">
-        
-        {/* Estadísticas Principales */}
-        <div className="row mb-4">
-          <div className="col-md-3">
-            <div className="text-center stat-card">
-              <h6 className="text-muted">👥 Total Clientes</h6>
-              <h4 className="text-primary">{stats.totalClientes}</h4>
-              <small className="text-muted">Registrados en el sistema</small>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="text-center stat-card">
-              <h6 className="text-muted">✅ Membresías Activas</h6>
-              <h4 className="text-success">{stats.membresiasActivas}</h4>
-              <small className="text-muted">Clientes activos</small>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="text-center stat-card">
-              <h6 className="text-muted">📦 Ventas Totales</h6>
-              <h4 className="text-info">{stats.totalVentas}</h4>
-              <small className="text-muted">Productos vendidos</small>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="text-center stat-card">
-              <h6 className="text-muted">📈 Crecimiento</h6>
-              <h4 className={reporteMensual.crecimiento >= 0 ? "text-success" : "text-danger"}>
-                {reporteMensual.crecimiento}%
-              </h4>
-              <small className="text-muted">Vs mes anterior</small>
-            </div>
-          </div>
-        </div>
 
-        {/* Resumen Financiero */}
-        <h6 className="mb-3">💰 Resumen Financiero</h6>
-        <div className="row mb-4">
-          <div className="col-md-3">
-            <div className="text-center">
-              <h6 className="text-muted">Membresías</h6>
-              <h4 className="text-primary">{formatearMoneda(reporteMensual.ingresosMembresias)}</h4>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="text-center">
-              <h6 className="text-muted">Ventas Productos</h6>
-              <h4 className="text-success">{formatearMoneda(reporteMensual.ingresosProductos)}</h4>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="text-center">
-              <h6 className="text-muted">Gastos Operativos</h6>
-              <h4 className="text-danger">{formatearMoneda(reporteMensual.gastos)}</h4>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="text-center">
-              <h6 className="text-muted">Ganancia Neta</h6>
-              <h4 className="text-success">{formatearMoneda(reporteMensual.gananciaNeta)}</h4>
-            </div>
-          </div>
+      {loading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary"></div>
+          <p className="mt-3 text-muted">Cargando datos...</p>
         </div>
+      ) : (
+        <>
+          {/* STATS PRINCIPALES - SIN GASTOS */}
+          <div className="row g-4 mb-4">
+            {[
+              {
+                label: "Total Clientes",
+                value: stats.totalClientes,
+                icon: "👥",
+                color: "primary",
+              },
+              {
+                label: "Membresías Activas",
+                value: stats.membresiasActivas,
+                icon: "🎫",
+                color: "success",
+              },
+              {
+                label: "Ventas Realizadas",
+                value: stats.totalVentas,
+                icon: "🛒",
+                color: "info",
+              },
+              {
+                label: "Ingresos Totales",
+                value: fMoneda(stats.ingresosTotales),
+                icon: "💰",
+                color: "warning",
+              },
+            ].map((c, i) => (
+              <div key={i} className="col-md-3">
+                <div className="card shadow-sm border-0 text-center p-3">
+                  <div className={`text-${c.color} mb-2`} style={{ fontSize: '2rem' }}>
+                    {c.icon}
+                  </div>
+                  <h4 className="fw-bold mb-0">{c.value}</h4>
+                  <span className="text-muted">{c.label}</span>
+                </div>
+              </div>
+            ))}
+          </div>
 
-        {/* Productos Más Vendidos */}
-        {productosMasVendidos.length > 0 && (
-          <>
-            <h6>🏆 Productos Más Vendidos</h6>
-            <div className="table-responsive">
-              <table className="table table-sm table-modern">
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Unidades Vendidas</th>
-                    <th>Ingresos Generados</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productosMasVendidos.map((producto, index) => (
-                    <tr key={index}>
-                      <td className="fw-semibold">{producto.nombre}</td>
-                      <td>
-                        <span className="badge bg-primary">{producto.vendidos} unidades</span>
-                      </td>
-                      <td className="text-success fw-bold">{formatearMoneda(producto.ingresos)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* RESUMEN FINANCIERO - SOLO INGRESOS */}
+          <div className="card shadow-sm border-0 mb-4">
+            <div className="card-header bg-white">
+              <h5 className="mb-0">💰 Flujo de Ingresos</h5>
             </div>
-          </>
-        )}
-
-        {/* Resumen Final */}
-        <div className="mt-3 p-3 bg-light rounded">
-          <div className="row text-center">
-            <div className="col-md-3">
-              <strong>Total Clientes:</strong><br />
-              <span className="h5 text-primary">{stats.totalClientes}</span>
-            </div>
-            <div className="col-md-3">
-              <strong>Ingresos Totales:</strong><br />
-              <span className="h5 text-success">{formatearMoneda(stats.ingresosTotales)}</span>
-            </div>
-            <div className="col-md-3">
-              <strong>Ganancia Neta:</strong><br />
-              <span className="h5 text-success">{formatearMoneda(reporteMensual.gananciaNeta)}</span>
-            </div>
-            <div className="col-md-3">
-              <strong>Margen:</strong><br />
-              <span className="h5 text-info">
-                {reporteMensual.totalIngresos > 0 
-                  ? Math.round((reporteMensual.gananciaNeta / reporteMensual.totalIngresos) * 100) 
-                  : 0
-                }%
-              </span>
+            <div className="card-body row text-center">
+              <div className="col-md-4">
+                <p className="text-muted mb-1">Ingresos por Membresías</p>
+                <h4 className="text-primary">
+                  {fMoneda(reporteMensual.ingresosMembresias)}
+                </h4>
+              </div>
+              <div className="col-md-4">
+                <p className="text-muted mb-1">Ventas de Productos</p>
+                <h4 className="text-success">
+                  {fMoneda(reporteMensual.ingresosProductos)}
+                </h4>
+              </div>
+              <div className="col-md-4">
+                <p className="text-muted mb-1">Total Ingresos</p>
+                <h4 className="text-warning">
+                  {fMoneda(reporteMensual.totalIngresos)}
+                </h4>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+
+          {/* RESTANTE DEL CÓDIGO IGUAL */}
+          <div className="row">
+            <div className="col-lg-6 mb-4">
+              <div className="card shadow-sm border-0">
+                <div className="card-header bg-white">
+                  <h5 className="mb-0">🏆 Productos Más Vendidos</h5>
+                </div>
+                <div className="card-body">
+                  {productosMasVendidos.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-striped table-sm">
+                        <thead>
+                          <tr>
+                            <th>Producto</th>
+                            <th>Unidades</th>
+                            <th>Ingresos</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productosMasVendidos.map((p, i) => (
+                            <tr key={i}>
+                              <td>{p.nombre}</td>
+                              <td>
+                                <span className="badge bg-primary">
+                                  {p.vendidos}
+                                </span>
+                              </td>
+                              <td className="text-success fw-bold">
+                                {fMoneda(p.ingresos)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-muted text-center">No hay ventas registradas</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="col-lg-6 mb-4">
+              <div className="card shadow-sm border-0">
+                <div className="card-header bg-white">
+                  <h5 className="mb-0">📦 Ventas Recientes</h5>
+                </div>
+                <div className="card-body">
+                  {ventasRecientes.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-striped table-sm">
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Método</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ventasRecientes.map((v, i) => (
+                            <tr key={i}>
+                              <td>{fFechaHora(v.fecha_venta)}</td>
+                              <td className="text-success fw-bold">
+                                {fMoneda(v.total)}
+                              </td>
+                              <td>
+                                <span className="badge bg-info">
+                                  {v.metodo_pago}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-muted text-center">No hay ventas recientes</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PAGOS RECIENTES */}
+          <div className="card shadow-sm border-0">
+            <div className="card-header bg-white">
+              <h5 className="mb-0">💳 Pagos Recientes de Membresías</h5>
+            </div>
+            <div className="card-body">
+              {pagosRecientes.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-striped table-sm">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Valor</th>
+                        <th>Cliente ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagosRecientes.map((p, i) => (
+                        <tr key={i}>
+                          <td>{fFecha(p.fecha_pago)}</td>
+                          <td className="text-success fw-bold">
+                            {fMoneda(p.valor)}
+                          </td>
+                          <td>{p.cliente_id}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-muted text-center">No hay pagos recientes</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
-export default RevenueReport;
+export default Dashboard;

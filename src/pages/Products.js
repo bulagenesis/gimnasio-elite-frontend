@@ -1,259 +1,237 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
+// Constantes
+const CATEGORIAS = [
+  { value: 'Suplementos', label: '🥤 Suplementos' },
+  { value: 'Bebidas', label: '💧 Bebidas' },
+  { value: 'Bocadillos', label: '🍫 Bocadillos' },
+  { value: 'Merchandising', label: '👕 Merchandising' },
+  { value: 'Accesorios', label: '🏋️ Accesorios' }
+];
+
+const ESTADO_STOCK = {
+  AGOTADO: 'Agotado',
+  BAJO_STOCK: 'Bajo Stock',
+  DISPONIBLE: 'Disponible'
+};
+
 const Products = () => {
   const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({
     nombre: '',
     precio: '',
     stock: '',
-    categoria: 'suplemento'
+    categoria: 'Suplementos',
+    descripcion: ''
   });
+
+  // ✅ Cargar productos
+  const cargarProductos = async () => {
+    setLoading(true);
+    try {
+      const data = await api.getProductos();
+      setProductos(data);
+    } catch (error) {
+      console.error('Error cargando productos:', error);
+      alert('Error al cargar productos: ' + (error.message || 'Desconocido'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     cargarProductos();
   }, []);
 
-  const cargarProductos = async () => {
-    try {
-      // Datos de ejemplo
-      setProductos([
-        { id: 1, nombre: 'Proteína Whey', precio: 120000, stock: 15, categoria: 'suplemento', vendidos: 8 },
-        { id: 2, nombre: 'Creatina', precio: 80000, stock: 10, categoria: 'suplemento', vendidos: 12 },
-        { id: 3, nombre: 'Agua', precio: 3000, stock: 50, categoria: 'bebida', vendidos: 45 },
-        { id: 4, nombre: 'Bebida Hidratante', precio: 5000, stock: 30, categoria: 'bebida', vendidos: 25 },
-        { id: 5, nombre: 'Barra Energética', precio: 7000, stock: 20, categoria: 'bocadillo', vendidos: 18 },
-      ]);
-    } catch (error) {
-      console.error('Error cargando productos:', error);
-    }
-  };
-
-  const handleNuevoProducto = async (productoData) => {
-    try {
-      const nuevoProducto = {
-        id: Date.now(),
-        ...productoData,
-        precio: parseInt(productoData.precio),
-        stock: parseInt(productoData.stock),
-        vendidos: 0
-      };
-      setProductos(prev => [...prev, nuevoProducto]);
-      setShowModal(false);
-      setFormData({ nombre: '', precio: '', stock: '', categoria: 'suplemento' });
-      alert('✅ Producto agregado exitosamente!');
-    } catch (error) {
-      console.error('Error agregando producto:', error);
-      alert('❌ Error al agregar producto');
-    }
-  };
-
-  const categorias = [
-    { value: 'suplemento', label: '🥤 Suplemento' },
-    { value: 'bebida', label: '💧 Bebida' },
-    { value: 'bocadillo', label: '🍫 Bocadillo' },
-    { value: 'merchandising', label: '👕 Merchandising' }
-  ];
-
+  // Utilidades
   const getCategoriaIcon = (categoria) => {
-    const cat = categorias.find(c => c.value === categoria);
+    const cat = CATEGORIAS.find(c => c.value === categoria);
     return cat ? cat.label.split(' ')[0] : '📦';
   };
 
-  // Calcular estadísticas
-  const totalProductos = productos.length;
-  const productosBajoStock = productos.filter(p => p.stock < 10).length;
-  const ingresosProductos = productos.reduce((total, p) => total + (p.precio * p.vendidos), 0);
+  const getEstadoStock = (stock) => {
+    if (stock === 0) return ESTADO_STOCK.AGOTADO;
+    if (stock < 5) return ESTADO_STOCK.BAJO_STOCK;
+    return ESTADO_STOCK.DISPONIBLE;
+  };
+
+  const getClaseEstado = (stock) => {
+    if (stock === 0) return 'bg-danger';
+    if (stock < 5) return 'bg-warning';
+    return 'bg-success';
+  };
+
+  // Modales
+  const openCreateModal = () => {
+    setIsEditing(false);
+    setEditingProduct(null);
+    setFormData({
+      nombre: '',
+      precio: '',
+      stock: '',
+      categoria: 'Suplementos',
+      descripcion: ''
+    });
+    setShowModal(true);
+  };
+
+  const openEditModal = (producto) => {
+    setIsEditing(true);
+    setEditingProduct(producto);
+    setFormData({
+      nombre: producto.nombre,
+      precio: producto.precio.toString(),
+      stock: producto.stock.toString(),
+      categoria: producto.categoria,
+      descripcion: producto.descripcion || ''
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => setShowModal(false);
+
+  // CRUD Productos
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (isEditing) {
+        const updated = await api.updateProducto(editingProduct.id, {
+          ...formData,
+          precio: parseFloat(formData.precio),
+          stock: parseInt(formData.stock)
+        });
+        setProductos(prev => prev.map(p => p.id === updated.id ? updated : p));
+        alert('✅ Producto actualizado');
+      } else {
+        const nuevo = await api.createProducto({
+          ...formData,
+          precio: parseFloat(formData.precio),
+          stock: parseInt(formData.stock)
+        });
+        setProductos(prev => [...prev, nuevo]);
+        alert('✅ Producto creado');
+      }
+      closeModal();
+    } catch (error) {
+      console.error('Error en operación CRUD:', error);
+      alert('❌ ' + (error.message || 'Error desconocido'));
+    }
+  };
+
+  // Estadísticas
+  const estadisticas = {
+    total: productos.length,
+    bajoStock: productos.filter(p => p.stock < 10).length,
+    agotados: productos.filter(p => p.stock === 0).length,
+    totalStock: productos.reduce((acc, p) => acc + p.stock, 0)
+  };
+
+  // Render
+  if (loading) return <div className="text-center p-5">Cargando productos...</div>;
 
   return (
     <div className="container-fluid p-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2 className="text-dark mb-0">Gestión de Productos</h2>
-          <small className="text-muted">Inventario y ventas - Gimnasio Elite</small>
-        </div>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowModal(true)}
-        >
-          📦 + Nuevo Producto
-        </button>
+      <div className="d-flex justify-content-between mb-4">
+        <h2>📦 Gestión de Productos</h2>
+        <button className="btn btn-primary" onClick={openCreateModal}>+ Nuevo Producto</button>
       </div>
 
-      {/* Estadísticas de Productos */}
+      {/* Estadísticas */}
       <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card gym-card">
-            <div className="card-body text-center">
-              <h6 className="card-title">Total Productos</h6>
-              <h3 className="text-primary">{totalProductos}</h3>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card gym-card">
-            <div className="card-body text-center">
-              <h6 className="card-title">Bajo Stock</h6>
-              <h3 className="text-warning">{productosBajoStock}</h3>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card gym-card">
-            <div className="card-body text-center">
-              <h6 className="card-title">Ingresos Productos</h6>
-              <h3 className="text-success">${(ingresosProductos/1000).toFixed(0)}K</h3>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card gym-card">
-            <div className="card-body text-center">
-              <h6 className="card-title">Productos Vendidos</h6>
-              <h3 className="text-info">{productos.reduce((total, p) => total + p.vendidos, 0)}</h3>
-            </div>
-          </div>
-        </div>
+        <div className="col-md-3"><div className="card text-center"><div className="card-body"><h6>Total Productos</h6><h3>{estadisticas.total}</h3></div></div></div>
+        <div className="col-md-3"><div className="card text-center"><div className="card-body"><h6>Bajo Stock</h6><h3>{estadisticas.bajoStock}</h3></div></div></div>
+        <div className="col-md-3"><div className="card text-center"><div className="card-body"><h6>Agotados</h6><h3>{estadisticas.agotados}</h3></div></div></div>
+        <div className="col-md-3"><div className="card text-center"><div className="card-body"><h6>Stock Total</h6><h3>{estadisticas.totalStock}</h3></div></div></div>
       </div>
 
-      {/* Tabla de Productos */}
-      <div className="card gym-card">
-        <div className="card-header bg-white">
-          <h5 className="card-title mb-0">📋 Inventario de Productos</h5>
+      {/* Tabla */}
+      <div className="card">
+        <div className="card-header d-flex justify-content-between">
+          <span>Inventario</span>
+          <button className="btn btn-outline-secondary btn-sm" onClick={cargarProductos}>🔄 Actualizar</button>
         </div>
-        <div className="card-body">
-          <div className="table-responsive">
-            <table className="table table-hover">
-              <thead className="table-light">
-                <tr>
-                  <th>Producto</th>
-                  <th>Categoría</th>
-                  <th>Precio</th>
-                  <th>Stock</th>
-                  <th>Vendidos</th>
-                  <th>Ingresos</th>
-                  <th>Estado</th>
+        <div className="table-responsive">
+          <table className="table table-hover">
+            <thead className="table-light">
+              <tr>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productos.map(p => (
+                <tr key={p.id}>
+                  <td>{p.nombre}</td>
+                  <td>{getCategoriaIcon(p.categoria)} {p.categoria}</td>
+                  <td>${p.precio.toLocaleString()}</td>
+                  <td>{p.stock}</td>
+                  <td>{p.descripcion || '-'}</td>
+                  <td><span className={`badge ${getClaseEstado(p.stock)}`}>{getEstadoStock(p.stock)}</span></td>
+                  <td>
+                    <button className="btn btn-sm btn-info" onClick={() => openEditModal(p)}>✏️</button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {productos.map(producto => (
-                  <tr key={producto.id}>
-                    <td>
-                      <strong>{producto.nombre}</strong>
-                    </td>
-                    <td>
-                      <span className="badge bg-secondary">
-                        {getCategoriaIcon(producto.categoria)} {producto.categoria}
-                      </span>
-                    </td>
-                    <td>
-                      <strong className="text-success">
-                        ${producto.precio.toLocaleString()}
-                      </strong>
-                    </td>
-                    <td>
-                      <span className={producto.stock < 10 ? 'text-warning fw-bold' : ''}>
-                        {producto.stock} unidades
-                      </span>
-                    </td>
-                    <td>{producto.vendidos}</td>
-                    <td>
-                      <strong className="text-success">
-                        ${(producto.precio * producto.vendidos).toLocaleString()}
-                      </strong>
-                    </td>
-                    <td>
-                      <span className={`badge ${
-                        producto.stock === 0 ? 'bg-danger' :
-                        producto.stock < 5 ? 'bg-warning' : 'bg-success'
-                      }`}>
-                        {producto.stock === 0 ? 'Agotado' :
-                         producto.stock < 5 ? 'Bajo Stock' : 'Disponible'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Modal de Nuevo Producto */}
+      {/* Modal Crear/Editar */}
       {showModal && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Agregar Nuevo Producto</h5>
-                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                <h5>{isEditing ? `Editar: ${editingProduct?.nombre}` : 'Nuevo Producto'}</h5>
+                <button className="btn-close" onClick={closeModal}></button>
               </div>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleNuevoProducto(formData);
-              }}>
+              <form onSubmit={handleSubmit}>
                 <div className="modal-body">
-                  <div className="row g-3">
-                    <div className="col-12">
-                      <label className="form-label">Nombre del Producto *</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={formData.nombre}
-                        onChange={(e) => setFormData(prev => ({...prev, nombre: e.target.value}))}
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Precio ($) *</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.precio}
-                        onChange={(e) => setFormData(prev => ({...prev, precio: e.target.value}))}
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Stock Inicial *</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.stock}
-                        onChange={(e) => setFormData(prev => ({...prev, stock: e.target.value}))}
-                        required
-                      />
-                    </div>
-                    <div className="col-12">
-                      <label className="form-label">Categoría</label>
-                      <select
-                        className="form-select"
-                        value={formData.categoria}
-                        onChange={(e) => setFormData(prev => ({...prev, categoria: e.target.value}))}
-                      >
-                        {categorias.map(cat => (
-                          <option key={cat.value} value={cat.value}>
-                            {cat.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="mb-3">
+                    <label>Nombre *</label>
+                    <input type="text" className="form-control" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} required/>
+                  </div>
+                  <div className="mb-3">
+                    <label>Precio *</label>
+                    <input type="number" className="form-control" value={formData.precio} onChange={e => setFormData({...formData, precio: e.target.value})} required step="0.01" min="0"/>
+                  </div>
+                  <div className="mb-3">
+                    <label>Stock *</label>
+                    <input type="number" className="form-control" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} required min="0"/>
+                  </div>
+                  <div className="mb-3">
+                    <label>Categoría *</label>
+                    <select className="form-select" value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})}>
+                      {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label>Descripción</label>
+                    <textarea className="form-control" value={formData.descripcion} onChange={e => setFormData({...formData, descripcion: e.target.value})}></textarea>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                    Cancelar
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Agregar Producto
-                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">{isEditing ? 'Guardar' : 'Agregar'}</button>
                 </div>
               </form>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

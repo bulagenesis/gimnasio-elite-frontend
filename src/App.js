@@ -4,7 +4,9 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Payments from './pages/Payments';
-import Products from './pages/Products'; // ← ESTA LÍNEA NUEVA
+import Products from './pages/Products';
+import Sales from './pages/Sales';   // <-- IMPORTANTE
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/custom.css';
 
@@ -16,7 +18,11 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/clientes" element={<Clients />} />
           <Route path="/pagos" element={<Payments />} />
-          <Route path="/productos" element={<Products />} /> {/* ← ESTA LÍNEA NUEVA */}
+          <Route path="/productos" element={<Products />} />
+
+          {/* ✅ NUEVA RUTA PARA VENTAS */}
+          <Route path="/ventas" element={<Sales />} />
+
         </Routes>
       </Layout>
     </Router>

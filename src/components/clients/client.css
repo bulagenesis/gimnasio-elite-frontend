@@ -1,0 +1,79 @@
+/* ======= MODAL ======= */
+.custom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.custom-modal {
+  width: 500px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.custom-modal-header {
+  padding: 16px 20px;
+  background: #f6f8fa;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.custom-modal-body {
+  padding: 20px;
+}
+
+.custom-modal-footer {
+  padding: 15px 20px;
+  background: #f6f8fa;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ======= TABLE ======= */
+.modern-card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0px 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.modern-table thead {
+  background: #f0f2f5;
+}
+
+.modern-table thead th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.modern-table tbody tr {
+  transition: background 0.2s;
+}
+
+.modern-table tbody tr:hover {
+  background: #fafafa;
+}
+
+/* Animación pequeña */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
