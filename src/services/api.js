@@ -3,7 +3,7 @@
 class ApiService {
 	static instance = null;
 	// Usar localhost:8000 para coincidir con la URL predeterminada de FastAPI/Uvicorn
-	baseURL = 'http://localhost:8000';
+	baseURL = 'https://elite-gym-lh5p.onrender.com';
 
 	constructor() {
 		if (ApiService.instance) {
